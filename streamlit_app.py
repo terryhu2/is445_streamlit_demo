@@ -6,68 +6,42 @@
 # 5. use the URL from prior steps as intput into this simple browser
 
 
+
+
 import streamlit as st
-import altair as alt
- 
-st.title('Streamlit App for IS445: ID25679')
+import networkx as nx
+import pandas as pd
 
-st.text("The URL for this app is: https://jnaiman-is445-lab.streamlit.app/")
-st.text("The URL for its GitHub repo is: https://github.com/terryhu2/is445_streamlit_demo")
+st.title("Facebook Social Network Analysis")
+st.write("IS445 - Interactive Network Visualization")
 
-source = "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/seattle-weather.csv"
-
-scale = alt.Scale(
-    domain=["sun", "fog", "drizzle", "rain", "snow"],
-    range=["#e7ba52", "#a7a7a7", "#aec7e8", "#1f77b4", "#9467bd"],
-)
-color = alt.Color("weather:N", scale=scale)
-
-# We create two selections:
-# - a brush that is active on the top panel
-# - a multi-click that is active on the bottom panel
-brush = alt.selection_interval(encodings=["x"])
-click = alt.selection_point(encodings=["color"])
-
-# Top panel is scatter plot of temperature vs time
-points = (
-    alt.Chart()
-    .mark_point()
-    .encode(
-        alt.X("monthdate(date):T", title="Date (Month Year)"),
-        alt.Y(
-            "temp_max:Q",
-            title="Maximum Daily Temperature (C)",
-            scale=alt.Scale(domain=[-5, 40]),
-        ),
-        color=alt.condition(brush, color, alt.value("lightgray")),
-        size=alt.Size("precipitation:Q", scale=alt.Scale(range=[5, 200])),
+# Read the Facebook network dataset
+@st.cache_data
+def load_data():
+    graph = nx.read_edgelist(
+        "facebook_combined.txt",
+        nodetype=int
     )
-    .properties(width=550, height=300)
-    .add_params(brush)
-    .transform_filter(click)
+    return graph
+
+G = load_data()
+
+# Basic network statistics
+num_nodes = G.number_of_nodes()
+num_edges = G.number_of_edges()
+
+st.header("Dataset Overview")
+
+st.write("Number of users:", num_nodes)
+st.write("Number of friendships:", num_edges)
+
+# Calculate the degree of each user
+degrees = dict(G.degree())
+
+df = pd.DataFrame(
+    list(degrees.items()),
+    columns=["User", "Number of Friends"]
 )
 
-# Bottom panel is a bar chart of weather type
-bars = (
-    alt.Chart()
-    .mark_bar()
-    .encode(
-        x="count()",
-        y="weather:N",
-        color=alt.condition(click, color, alt.value("lightgray")),
-    )
-    .transform_filter(brush)
-    .properties(
-        width=550,
-    )
-    .add_params(click)
-)
-
-chart = alt.vconcat(points, bars, data=source, title="Seattle Weather - 2012 to 2019")
-
-tab1, tab2 = st.tabs(["Streamlit theme (default)", "Altair native theme"])
-
-with tab1:
-    st.altair_chart(chart, theme="streamlit", use_container_width=True)
-with tab2:
-    st.altair_chart(chart, theme=None, use_container_width=True)
+st.header("Sample Data")
+st.dataframe(df.head(10))
